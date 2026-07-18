@@ -37,6 +37,20 @@ async def show_total(message: types.Message):
         await message.answer('Список пустой (')        
 
 
+@dp.message(Command('reset'))
+async def process_reset(messege: types.Message):
+    user_id = str(messege.from_user.id)
+    db_data = get_expenses()
+    if db_data[user_id]:
+        db_data[user_id] = []
+    else:
+        await messege.answer('Пользователь не найден, введите данные')
+    #Запись
+    save_expenses(db_data)
+
+    await messege.answer('Успешно очищено')
+
+
 @dp.message(Command('delete'))
 async def process_delete(message: types.Message):
     user_id = str(message.from_user.id)
