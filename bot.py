@@ -38,17 +38,18 @@ async def show_total(message: types.Message):
 
 
 @dp.message(Command('reset'))
-async def process_reset(messege: types.Message):
-    user_id = str(messege.from_user.id)
+async def process_reset(message: types.Message):
+    user_id = str(message.from_user.id)
     db_data = get_expenses()
-    if db_data[user_id]:
+    if user_id in db_data:
         db_data[user_id] = []
     else:
-        await messege.answer('Пользователь не найден, введите данные')
+        await message.answer('Пользователь не найден, введите данные')
+        return
     #Запись
     save_expenses(db_data)
 
-    await messege.answer('Успешно очищено')
+    await message.answer('Успешно очищено')
 
 
 @dp.message(Command('delete'))
