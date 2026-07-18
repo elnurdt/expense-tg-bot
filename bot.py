@@ -1,33 +1,16 @@
 import asyncio
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-import os
-import json
 from dotenv import load_dotenv
+from database import get_expenses, save_expenses
 
 load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher() 
-
-DB_FILE_PATH = 'expenses.json'
-
-def get_expenses():
-    if not os.path.exists(DB_FILE_PATH):
-        return {}
-    
-    with open(DB_FILE_PATH, 'r', encoding='utf-8') as file:
-        try:
-            return json.load(file)
-        except json.JSONDecodeError:
-            return {}
-        
-
-def save_expenses(expenses):
-    with open(DB_FILE_PATH, 'w', encoding='utf-8') as file:
-        json.dump(expenses, file, ensure_ascii=False, indent=4)      
+dp = Dispatcher()    
 
 
 @dp.message(Command('total'))
