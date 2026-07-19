@@ -75,6 +75,41 @@ async def process_delete_callback(callback: types.CallbackQuery):
     await callback.message.edit_text("Трата успешно удалена!")
 
 
+@dp.message(Command('max'))
+async def get_max_expense(message: types.Message):
+    user_id = str(message.from_user.id)
+    user_expenses = get_user_expenses(user_id)
+
+    if user_expenses == []:
+        await message.answer('Список пуст!!!!!!!!!!!!')
+        return
+
+    max_expense = user_expenses[0]
+    for expense in user_expenses:
+        if expense['amount'] > max_expense['amount']:
+            max_expense = expense
+
+    result = f"Максимальная трата:\n\n{max_expense['name']} - {max_expense['amount']}тг"
+    await message.answer(result)
+
+
+@dp.message(Command('min'))
+async def get_min_expense(message: types.Message):
+    user_id = str(message.from_user.id)
+    user_expenses = get_user_expenses(user_id)
+
+    if not user_expenses:
+        await message.answer('Список пуст блять пж!!!!')
+        return
+    
+    min_expense = user_expenses[0]
+    for expense in user_expenses:
+        if expense['amount'] < min_expense['amount']:
+            min_expense = expense
+
+    result = f"Минимальная:\n\n{min_expense['name']} - {min_expense['amount']}тг"
+    await message.answer(result)
+
 @dp.message()
 async def process_add_expense(message: types.Message):
 
