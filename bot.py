@@ -3,7 +3,7 @@ import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from dotenv import load_dotenv
-from database import get_expenses, save_expenses
+from database import init_db, add_expense, get_user_expenses, delete_expense, clear_expenses
 import logging
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardButton
@@ -20,11 +20,10 @@ dp = Dispatcher()
 
 @dp.message(Command('total'))
 async def show_total(message: types.Message):
-    db_data = get_expenses()
     user_id = str(message.from_user.id)
+    users_expenses = get_user_expenses(user_id)
 
-    if user_id in db_data:
-        users_expenses = db_data[user_id]
+    if users_expenses:
         total = 0
 
         text = ''
@@ -40,14 +39,8 @@ async def show_total(message: types.Message):
 @dp.message(Command('reset'))
 async def process_reset(message: types.Message):
     user_id = str(message.from_user.id)
-    db_data = get_expenses()
-    if user_id in db_data:
-        db_data[user_id] = []
-    else:
-        await message.answer('Пользователь не найден, введите данные')
-        return
-    #Запись
-    save_expenses(db_data)
+    
+    clear_expenses(user_id)
 
     await message.answer('Успешно очищено')
 
@@ -55,16 +48,15 @@ async def process_reset(message: types.Message):
 @dp.message(Command('delete'))
 async def process_delete(message: types.Message):
     user_id = str(message.from_user.id)
-    db_data = get_expenses()
-    user_expenses = db_data.get(user_id, [])
+    user_expenses = get_user_expenses(user_id)
 
     if user_expenses:
         builder = InlineKeyboardBuilder()
 
-        for index, expense in enumerate(user_expenses):
+        for expense in user_expenses:
             builder.button(
                 text=f"{expense['name']} ({expense['amount']}тг)",
-                callback_data=f'delete_{index}'
+                callback_data=f"delete_{expense['id']}"
             )
         builder.adjust(1)
 
@@ -75,23 +67,16 @@ async def process_delete(message: types.Message):
 
 @dp.callback_query(F.data.startswith('delete_'))
 async def process_delete_callback(callback: types.CallbackQuery):
-    user_id = str(callback.from_user.id)
-    delete_index = int(callback.data.split('_')[1])
-    db_data = get_expenses()
-    user_expenses = db_data[user_id]
+    delete_id = int(callback.data.split('_')[1])
 
-    #Удаление выбранной записи
-    user_expenses.pop(delete_index)
-
-    #Сохранение изменения
-    save_expenses(db_data)
+    delete_expense(delete_id)
 
     await callback.answer("Удалено!")
     await callback.message.edit_text("Трата успешно удалена!")
 
 
 @dp.message()
-async def add_expense(message: types.Message):
+async def process_add_expense(message: types.Message):
 
     if not message.text:
         return
@@ -113,24 +98,20 @@ async def add_expense(message: types.Message):
             return
         
     #Записать историю в переменную expenses    
-    db_data = get_expenses()
     user_id = str(message.from_user.id)
-
-    if user_id not in db_data:
-        db_data[user_id] = []
 
     #Добавление новых трат
     for line in lines:
         new = line.split()
-        text = {'name': new[0], 'amount': new[1]}
-        db_data[user_id].append(text)
-        
-    save_expenses(db_data)
+        name = new[0]
+        amount = int(new[1])
+        add_expense(user_id, name, amount)
 
     await message.answer('Успешно записано')
 
 
 async def main():
+    init_db()
     await dp.start_polling(bot)
 
 asyncio.run(main())
