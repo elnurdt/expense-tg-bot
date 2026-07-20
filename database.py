@@ -49,3 +49,22 @@ def clear_expenses(user_id: str):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('DELETE FROM expenses WHERE user_id = ?', (user_id,))
+
+
+def get_extreme_expense(user_id: str, order: str):
+    if order not in ('ASC', 'DESC'):
+        raise ValueError("Invalid order")
+    
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f'SELECT id, name, amount FROM expenses WHERE user_id = ? ORDER BY amount {order} LIMIT 1', (user_id,))
+        row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        'id': row[0],
+        'name': row[1],
+        'amount': row[2]
+    }

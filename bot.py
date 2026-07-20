@@ -3,7 +3,7 @@ import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from dotenv import load_dotenv
-from database import init_db, add_expense, get_user_expenses, delete_expense, clear_expenses
+import database
 import logging
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardButton
@@ -11,7 +11,6 @@ from aiogram.types import InlineKeyboardButton
 logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
-
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 bot = Bot(token=BOT_TOKEN)
@@ -21,7 +20,7 @@ dp = Dispatcher()
 @dp.message(Command('total'))
 async def show_total(message: types.Message):
     user_id = str(message.from_user.id)
-    users_expenses = get_user_expenses(user_id)
+    users_expenses = database.get_user_expenses(user_id)
 
     if users_expenses:
         total = 0
@@ -40,7 +39,7 @@ async def show_total(message: types.Message):
 async def process_reset(message: types.Message):
     user_id = str(message.from_user.id)
     
-    clear_expenses(user_id)
+    database.clear_expenses(user_id)
 
     await message.answer('Успешно очищено')
 
@@ -48,7 +47,7 @@ async def process_reset(message: types.Message):
 @dp.message(Command('delete'))
 async def process_delete(message: types.Message):
     user_id = str(message.from_user.id)
-    user_expenses = get_user_expenses(user_id)
+    user_expenses = database.get_user_expenses(user_id)
 
     if user_expenses:
         builder = InlineKeyboardBuilder()
@@ -69,7 +68,7 @@ async def process_delete(message: types.Message):
 async def process_delete_callback(callback: types.CallbackQuery):
     delete_id = int(callback.data.split('_')[1])
 
-    delete_expense(delete_id)
+    database.delete_expense(delete_id)
 
     await callback.answer("Удалено!")
     await callback.message.edit_text("Трата успешно удалена!")
@@ -78,16 +77,11 @@ async def process_delete_callback(callback: types.CallbackQuery):
 @dp.message(Command('max'))
 async def get_max_expense(message: types.Message):
     user_id = str(message.from_user.id)
-    user_expenses = get_user_expenses(user_id)
+    max_expense = database.get_extreme_expense(user_id, order='DESC')
 
-    if user_expenses == []:
+    if max_expense is None:
         await message.answer('Список пуст!!!!!!!!!!!!')
         return
-
-    max_expense = user_expenses[0]
-    for expense in user_expenses:
-        if expense['amount'] > max_expense['amount']:
-            max_expense = expense
 
     result = f"Максимальная трата:\n\n{max_expense['name']} - {max_expense['amount']}тг"
     await message.answer(result)
@@ -96,7 +90,7 @@ async def get_max_expense(message: types.Message):
 @dp.message(Command('min'))
 async def get_min_expense(message: types.Message):
     user_id = str(message.from_user.id)
-    user_expenses = get_user_expenses(user_id)
+    user_expenses = database.get_user_expenses(user_id)
 
     if not user_expenses:
         await message.answer('Список пуст блять пж!!!!')
@@ -140,13 +134,13 @@ async def process_add_expense(message: types.Message):
         new = line.split()
         name = new[0]
         amount = int(new[1])
-        add_expense(user_id, name, amount)
+        database.add_expense(user_id, name, amount)
 
     await message.answer('Успешно записано')
 
 
 async def main():
-    init_db()
+    database.init_db()
     await dp.start_polling(bot)
 
 asyncio.run(main())
