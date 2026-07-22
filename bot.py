@@ -27,7 +27,7 @@ async def show_total(message: types.Message):
 
         text = ''
         for s in users_expenses:
-            text += f"{s['name']} - {s['amount']}тг\n"
+            text += f"{s['name']} - {s['amount']}тг, {s['category']}\n"
             total += int(s['amount'])
         text += f'\n Сумма - {total}'
         await message.answer(text)
@@ -54,7 +54,7 @@ async def process_delete(message: types.Message):
 
         for expense in user_expenses:
             builder.button(
-                text=f"{expense['name']} ({expense['amount']}тг)",
+                text=f"{expense['name']} ({expense['amount']}тг, {expense['category']})",
                 callback_data=f"delete_{expense['id']}"
             )
         builder.adjust(1)
@@ -83,25 +83,20 @@ async def get_max_expense(message: types.Message):
         await message.answer('Список пуст!!!!!!!!!!!!')
         return
 
-    result = f"Максимальная трата:\n\n{max_expense['name']} - {max_expense['amount']}тг"
+    result = f"Максимальная трата:\n\n{max_expense['name']} - {max_expense['amount']}тг, {max_expense['category']}"
     await message.answer(result)
 
 
 @dp.message(Command('min'))
 async def get_min_expense(message: types.Message):
     user_id = str(message.from_user.id)
-    user_expenses = database.get_user_expenses(user_id)
+    min_expense = database.get_extreme_expense(user_id, order='ASC')
 
-    if not user_expenses:
+    if min_expense is None:
         await message.answer('Список пуст блять пж!!!!')
         return
-    
-    min_expense = user_expenses[0]
-    for expense in user_expenses:
-        if expense['amount'] < min_expense['amount']:
-            min_expense = expense
 
-    result = f"Минимальная:\n\n{min_expense['name']} - {min_expense['amount']}тг"
+    result = f"Минимальная:\n\n{min_expense['name']} - {min_expense['amount']}тг, {min_expense['category']}"
     await message.answer(result)
 
 @dp.message()
@@ -116,8 +111,8 @@ async def process_add_expense(message: types.Message):
     for line in lines:
         new = line.split()
         #Проверка на нужное количество элементов одной строки
-        if len(new) != 2:
-            await message.answer('Строка должна состоять из двух частей, название и цена!!!')
+        if len(new) != 3:
+            await message.answer('Строка должна состоять из трех частей, название, цена, категория!!!')
             return
         #Проверка второго элемента строки, число или нет
         try:
@@ -134,7 +129,8 @@ async def process_add_expense(message: types.Message):
         new = line.split()
         name = new[0]
         amount = int(new[1])
-        database.add_expense(user_id, name, amount)
+        category = new[2]
+        database.add_expense(user_id, name, amount, category)
 
     await message.answer('Успешно записано')
 

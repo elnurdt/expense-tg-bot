@@ -11,21 +11,22 @@ def init_db():
                 user_id TEXT,
                 name TEXT,
                 amount INTEGER,
+                category TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     )
         ''')
 
 
-def add_expense(user_id: str, name: str, amount: int):
+def add_expense(user_id: str, name: str, amount: int, category: str):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO expenses (user_id, name, amount) VALUES (?, ?, ?)', (user_id, name, amount))
+        cursor.execute('INSERT INTO expenses (user_id, name, amount, category) VALUES (?, ?, ?, ?)', (user_id, name, amount, category))
 
 
 def get_user_expenses(user_id: str) -> list[dict]:
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT id, name, amount FROM expenses WHERE user_id = ?', (user_id,))
+        cursor.execute('SELECT id, name, amount, category FROM expenses WHERE user_id = ?', (user_id,))
         rows = cursor.fetchall()
 
     expenses = []
@@ -33,7 +34,8 @@ def get_user_expenses(user_id: str) -> list[dict]:
         expenses.append({
             'id': row[0],
             'name': row[1],
-            'amount': row[2]
+            'amount': row[2],
+            'category': row[3]
         })
 
     return expenses        
@@ -57,7 +59,7 @@ def get_extreme_expense(user_id: str, order: str):
     
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute(f'SELECT id, name, amount FROM expenses WHERE user_id = ? ORDER BY amount {order} LIMIT 1', (user_id,))
+        cursor.execute(f'SELECT id, name, amount, category FROM expenses WHERE user_id = ? ORDER BY amount {order} LIMIT 1', (user_id,))
         row = cursor.fetchone()
 
     if row is None:
@@ -66,5 +68,6 @@ def get_extreme_expense(user_id: str, order: str):
     return {
         'id': row[0],
         'name': row[1],
-        'amount': row[2]
+        'amount': row[2],
+        'category': row[3]
     }
