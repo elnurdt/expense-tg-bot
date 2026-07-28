@@ -4,6 +4,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from dotenv import load_dotenv
 import database
+import analytics
 import logging
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardButton
@@ -99,6 +100,24 @@ async def get_min_expense(message: types.Message):
     result = f"Минимальная:\n\n{min_expense['name']} - {min_expense['amount']}тг, {min_expense['category']}"
     await message.answer(result)
 
+
+@dp.message(Command('analytics'))
+async def get_analytics(message: types.Message):
+    user_id = str(message.from_user.id)
+    user_expenses = database.get_user_expenses(user_id)
+
+    if not user_expenses:
+        await message.answer('Список пуст')
+        return
+    
+    expenses_by_categories = analytics.analyze_expenses(user_expenses)
+    result = ''
+    for category, amount in expenses_by_categories.items():
+        result += f'{category}: {amount}тг\n'
+
+    await message.answer(result)
+
+    
 @dp.message()
 async def process_add_expense(message: types.Message):
 
