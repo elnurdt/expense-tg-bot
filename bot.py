@@ -8,6 +8,8 @@ import analytics
 import logging
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardButton
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.context import FSMContext
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,6 +18,61 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()    
+
+class AddExpenseForm(StatesGroup):
+    name = State()
+    amount = State()
+    category = State()
+
+
+@dp.message(Command('add'))
+async def start_add_expense(message: types.Message, state: FSMContext):
+    await state.set_state(AddExpenseForm.name)
+    await message.answer('Введите название траты')
+
+
+@dp.message(AddExpenseForm.name)
+async def process_name(message: types.Message, state:FSMContext):
+    await state.update_data(name=message.text)
+    await state.set_state(AddExpenseForm.amount)
+    await message.answer('Введите сумму траты')
+
+
+@dp.message(AddExpenseForm.amount)
+async def process_amount(message: types.Message, state: FSMContext):
+    try:
+        int(message.text)
+    except ValueError:
+        await message.answer('Сумма должна состоять из чисел')
+        return
+
+    await state.update_data(amount=message.text)
+    await state.set_state(AddExpenseForm.category)
+
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Еда", callback_data="category_Еда")
+    builder.button(text="Транспорт", callback_data="category_Транспорт")
+    builder.button(text="Развлечения", callback_data="category_Развлечения")
+    builder.adjust(2)
+
+    await message.answer("Выбери категорию:", reply_markup=builder.as_markup())
+
+
+@dp.callback_query(AddExpenseForm.category, F.data.startswith('category_'))
+async def process_cateory_callback(callback: types.CallbackQuery, state: FSMContext):
+    category = callback.data.split('_')[1]
+
+    user_data = await state.get_data()
+    user_id = str(callback.from_user.id)
+
+    database.add_expense(user_id, user_data['name'], int(user_data['amount']), category)
+
+    await state.clear()
+
+    await callback.answer("Записано!")
+    await callback.message.edit_text(
+        f"Успешно добавлено: {user_data['name']} ({user_data['amount']}тг, {category})"
+    )
 
 
 @dp.message(Command('total'))
@@ -119,39 +176,8 @@ async def get_analytics(message: types.Message):
 
     
 @dp.message()
-async def process_add_expense(message: types.Message):
-
-    if not message.text:
-        return
-
-    #Делим строку на части
-    lines = message.text.split('\n')
-    
-    for line in lines:
-        new = line.split()
-        #Проверка на нужное количество элементов одной строки
-        if len(new) != 3:
-            await message.answer('Строка должна состоять из трех частей, название, цена, категория!!!')
-            return
-        #Проверка второго элемента строки, число или нет
-        try:
-            int(new[1])
-        except ValueError:
-            await message.answer(f'{new[1]} - не является числом')
-            return
-        
-    #Записать историю в переменную expenses    
-    user_id = str(message.from_user.id)
-
-    #Добавление новых трат
-    for line in lines:
-        new = line.split()
-        name = new[0]
-        amount = int(new[1])
-        category = new[2]
-        database.add_expense(user_id, name, amount, category)
-
-    await message.answer('Успешно записано')
+async def process_unknown_message(message: types.Message):
+    await message.answer("Я не понимаю эту команду. Напишите /add чтобы добавить трату или /total для просмотра списка.")
 
 
 async def main():
