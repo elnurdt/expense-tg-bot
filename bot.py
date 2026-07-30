@@ -10,6 +10,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.types import KeyboardButton
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,7 +27,29 @@ class AddExpenseForm(StatesGroup):
     category = State()
 
 
+@dp.message(Command('start'))
+async def cmd_start(message: types.Message):
+
+    builder = ReplyKeyboardBuilder()
+
+    builder.button(text="➕ Добавить трату")
+    builder.button(text="📊 Всего")
+    builder.button(text="📈 Аналитика")
+    builder.button(text='🗑 Удалить выбранное')
+    builder.button(text="🗑 Сбросить историю")
+    builder.button(text='Мин')
+    builder.button(text='Макс')
+
+    builder.adjust(2)
+
+    await message.answer(
+        "Главное меню:", 
+        reply_markup=builder.as_markup(resize_keyboard=True)
+    )
+
+
 @dp.message(Command('add'))
+@dp.message(F.text == '➕ Добавить трату')
 async def start_add_expense(message: types.Message, state: FSMContext):
     await state.set_state(AddExpenseForm.name)
     await message.answer('Введите название траты')
@@ -41,7 +65,7 @@ async def process_name(message: types.Message, state:FSMContext):
 @dp.message(AddExpenseForm.amount)
 async def process_amount(message: types.Message, state: FSMContext):
     try:
-        int(message.text)
+        float(message.text)
     except ValueError:
         await message.answer('Сумма должна состоять из чисел')
         return
@@ -65,7 +89,7 @@ async def process_cateory_callback(callback: types.CallbackQuery, state: FSMCont
     user_data = await state.get_data()
     user_id = str(callback.from_user.id)
 
-    database.add_expense(user_id, user_data['name'], int(user_data['amount']), category)
+    database.add_expense(user_id, user_data['name'], float(user_data['amount']), category)
 
     await state.clear()
 
@@ -76,6 +100,7 @@ async def process_cateory_callback(callback: types.CallbackQuery, state: FSMCont
 
 
 @dp.message(Command('total'))
+@dp.message(F.text == '📊 Всего')
 async def show_total(message: types.Message):
     user_id = str(message.from_user.id)
     users_expenses = database.get_user_expenses(user_id)
@@ -86,7 +111,7 @@ async def show_total(message: types.Message):
         text = ''
         for s in users_expenses:
             text += f"{s['name']} - {s['amount']}тг, {s['category']}\n"
-            total += int(s['amount'])
+            total += float(s['amount'])
         text += f'\n Сумма - {total}'
         await message.answer(text)
     else:
@@ -94,6 +119,7 @@ async def show_total(message: types.Message):
 
 
 @dp.message(Command('reset'))
+@dp.message(F.text == '🗑 Сбросить историю')
 async def process_reset(message: types.Message):
     user_id = str(message.from_user.id)
     
@@ -103,6 +129,7 @@ async def process_reset(message: types.Message):
 
 
 @dp.message(Command('delete'))
+@dp.message(F.text == '🗑 Удалить выбранное')
 async def process_delete(message: types.Message):
     user_id = str(message.from_user.id)
     user_expenses = database.get_user_expenses(user_id)
@@ -133,6 +160,7 @@ async def process_delete_callback(callback: types.CallbackQuery):
 
 
 @dp.message(Command('max'))
+@dp.message(F.text == 'Макс')
 async def get_max_expense(message: types.Message):
     user_id = str(message.from_user.id)
     max_expense = database.get_extreme_expense(user_id, order='DESC')
@@ -146,6 +174,7 @@ async def get_max_expense(message: types.Message):
 
 
 @dp.message(Command('min'))
+@dp.message(F.text == 'Мин')
 async def get_min_expense(message: types.Message):
     user_id = str(message.from_user.id)
     min_expense = database.get_extreme_expense(user_id, order='ASC')
@@ -159,6 +188,7 @@ async def get_min_expense(message: types.Message):
 
 
 @dp.message(Command('analytics'))
+@dp.message(F.text == '📈 Аналитика')
 async def get_analytics(message: types.Message):
     user_id = str(message.from_user.id)
     user_expenses = database.get_user_expenses(user_id)
