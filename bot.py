@@ -100,22 +100,39 @@ async def process_cateory_callback(callback: types.CallbackQuery, state: FSMCont
 
 
 @dp.message(Command('total'))
-@dp.message(F.text == '📊 Всего')
+@dp.message(F.text == "📊 Всего")
 async def show_total(message: types.Message):
-    user_id = str(message.from_user.id)
-    users_expenses = database.get_user_expenses(user_id)
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📅 За сегодня", callback_data="total_today")
+    builder.button(text="🗓 За этот месяц", callback_data="total_month")
+    builder.button(text="♾ За всё время", callback_data="total_all")
+    builder.adjust(1)
 
+    await message.answer("За какой период показать траты?", reply_markup=builder.as_markup())
+
+
+@dp.callback_query(F.data.startswith('total_'))
+async def process_total_callback(callback: types.CallbackQuery):
+    # 1. Извлекаем период из callback.data ('today', 'month' или 'all')
+    period = callback.data.split('_')[1]
+    user_id = str(callback.from_user.id)
+
+    # 2. Запрашиваем из базы траты СТРОГО за этот период
+    users_expenses = database.get_expense_by_period(user_id, period)
+
+    # 3. Если траты за период есть — считаем сумму и формируем текст
     if users_expenses:
         total = 0
-
         text = ''
         for s in users_expenses:
-            text += f"{s['name']} - {s['amount']}тг, {s['category']}\n"
-            total += float(s['amount'])
-        text += f'\n Сумма - {total}'
-        await message.answer(text)
+            text += f"{s['name']} - {s['amount']}тг ({s['category']})\n"
+            total += int(s['amount'])
+        text += f'\n<b>Итого:</b> {total}тг'
+        
+        await callback.answer()
+        await callback.message.edit_text(text, parse_mode="HTML")
     else:
-        await message.answer('Список пустой (')        
+        await callback.answer("За этот период трат нет!", show_alert=True)           
 
 
 @dp.message(Command('reset'))

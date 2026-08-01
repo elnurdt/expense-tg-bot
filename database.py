@@ -71,3 +71,29 @@ def get_extreme_expense(user_id: str, order: str):
         'amount': row[2],
         'category': row[3]
     }
+
+
+def get_expense_by_period(user_id: str, period: str):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+
+        if period == 'today':
+            query = "SELECT id, name, amount, category FROM expenses WHERE user_id = ? AND date(created_at) = date('now', 'localtime')"
+        elif period == 'month':
+            query = "SELECT id, name, amount, category FROM expenses WHERE user_id = ? AND created_at >= date('now', 'start of month')"
+        else: #за все время
+            query = "SELECT id, name, amount, category FROM expenses WHERE user_id = ?"
+
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+
+    expenses = []
+    for row in rows:
+        expenses.append({
+            'id': row[0],
+            'name': row[1],
+            'amount': row[2],
+            'category': row[3]
+        })
+
+    return expenses        
